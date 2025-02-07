@@ -20,12 +20,12 @@ Gencode ถูกพัฒนาขึ้นเพื่อช่วย **สแ
 
 ### 1️⃣ **ติดตั้งผ่าน NPM**
 ```sh
-npm install -g gencode-next
+npm install -g scan-next
 ```
 
 ### 2️⃣ **ติดตั้งผ่าน Yarn**
 ```sh
-yarn global add gencode-next
+yarn global add scan-next
 ```
 
 ---
