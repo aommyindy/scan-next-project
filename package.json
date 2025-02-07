@@ -1,6 +1,6 @@
 {
   "name": "scan-next-project",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A CLI tool to scan Next.js project structure and generate AI prompts.",
   "main": "index.js",
   "bin": {
