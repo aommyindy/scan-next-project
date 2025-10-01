@@ -94,9 +94,16 @@ const getFilesRecursively = (
 const scanProjectStructure = (projectPath) => {
   console.log("🔍 Scanning Project Structure...");
   const files = getFilesRecursively(projectPath);
-  const fileTypes = [
-    ...new Set(files.map((f) => (f.endsWith(".ts") ? "ts" : "js"))),
-  ];
+  
+  // Detect file types more comprehensively
+  const fileExtensions = files.map((f) => {
+    const ext = path.extname(f);
+    if ([".ts", ".tsx"].includes(ext)) return "ts";
+    if ([".js", ".jsx"].includes(ext)) return "js";
+    return null;
+  }).filter(Boolean);
+  
+  const fileTypes = [...new Set(fileExtensions)];
 
   return {
     fileTypes,
@@ -147,7 +154,7 @@ const detectCSSImports = (cssFrameworks) => {
   if (cssFrameworks.mui)
     imports.push("import { ThemeProvider } from '@mui/material/styles';");
   if (cssFrameworks.daisyUI)
-    imports.push("import { xxx } from 'react-daisyui';");
+    imports.push("import { Button, Card } from 'react-daisyui';");
   return imports;
 };
 
@@ -172,26 +179,64 @@ const detectCSSFramework = (projectPath) => {
   };
 };
 
+const detectStateManagement = (projectPath) => {
+  const packageJsonPath = path.join(projectPath, "package.json");
+  if (!fs.existsSync(packageJsonPath)) {
+    return {};
+  }
+
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+  const dependencies = Object.keys({
+    ...packageJson.dependencies,
+    ...packageJson.devDependencies,
+  });
+
+  return {
+    redux: dependencies.includes("redux") || dependencies.includes("@reduxjs/toolkit"),
+    recoil: dependencies.includes("recoil"),
+    zustand: dependencies.includes("zustand"),
+    mobx: dependencies.includes("mobx") || dependencies.includes("mobx-react"),
+    jotai: dependencies.includes("jotai"),
+  };
+};
+
 const scanNextProject = (projectPath) => {
-  const structure = scanProjectStructure(projectPath);
-  const cssFrameworks = detectCSSFramework(projectPath);
-  const stateManagement = {};
-  const cssImports = detectCSSImports(cssFrameworks);
-  const themes = detectThemes(projectPath);
+  // Validate project path
+  if (!fs.existsSync(projectPath)) {
+    console.error(`❌ Error: Project path does not exist: ${projectPath}`);
+    process.exit(1);
+  }
 
-  const outputPath = path.join(projectPath, ".continue/prompts/gencode.prompt");
-  const outputData = promptTemplate(
-    structure,
-    cssFrameworks,
-    stateManagement,
-    structure.fileTypes,
-    cssImports,
-    themes
-  );
+  const stat = fs.statSync(projectPath);
+  if (!stat.isDirectory()) {
+    console.error(`❌ Error: Project path is not a directory: ${projectPath}`);
+    process.exit(1);
+  }
 
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, outputData);
-  console.log("\n📁 Prompt saved to:", outputPath);
+  try {
+    const structure = scanProjectStructure(projectPath);
+    const cssFrameworks = detectCSSFramework(projectPath);
+    const stateManagement = detectStateManagement(projectPath);
+    const cssImports = detectCSSImports(cssFrameworks);
+    const themes = detectThemes(projectPath);
+
+    const outputPath = path.join(projectPath, ".continue/prompts/gencode.prompt");
+    const outputData = promptTemplate(
+      structure,
+      cssFrameworks,
+      stateManagement,
+      structure.fileTypes,
+      cssImports,
+      themes
+    );
+
+    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+    fs.writeFileSync(outputPath, outputData);
+    console.log("\n📁 Prompt saved to:", outputPath);
+  } catch (error) {
+    console.error("❌ Error scanning project:", error.message);
+    process.exit(1);
+  }
 };
 
 const projectPath = process.argv[2] || process.cwd();
